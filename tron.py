@@ -1,84 +1,302 @@
 import tkinter as tk
-from tkinter import messagebox, simpledialog
+from tkinter import messagebox, simpledialog, filedialog
+import hashlib
+import requests
 
-def show_message(label, message):
+key = 'your_virustotal_api_key'
+
+
+def msg(label, text):
     label.config(text='')
-    for char in message:
+    for char in text:
         label.config(text=label['text'] + char)
         label.update()
         label.after(100)
-    label.config(text=message)
+    label.config(text=text)
 
-def home_install():
-    output_label.config(text='')
-    show_message(output_label, 'Proceeding...')
+
+def gethash(path):
+    h = hashlib.sha256()
+
+    with open(path, 'rb') as file:
+        while True:
+            data = file.read(1024 * 1024)
+
+            if not data:
+                break
+
+            h.update(data)
+
+    return h.hexdigest()
+
+
+def scan():
+    path = filedialog.askopenfilename()
+
+    if not path:
+        return
+
+    output.config(text='')
+    msg(output, 'calculating hash')
+
+    try:
+        filehash = gethash(path)
+
+        output.config(text='')
+        msg(output, 'checking virustotal')
+
+        headers = {
+            'x-apikey': key
+        }
+
+        url = 'https://www.virustotal.com/api/v3/files/{}'.format(filehash)
+        res = requests.get(url, headers=headers, timeout=15)
+
+        if res.status_code == 200:
+            data = res.json()
+            stats = data['data']['attributes']['last_analysis_stats']
+
+            bad = stats.get('malicious', 0)
+            sus = stats.get('suspicious', 0)
+            safe = stats.get('harmless', 0)
+            unknown = stats.get('undetected', 0)
+
+            output.config(text='')
+
+            if bad > 0:
+                msg(
+                    output,
+                    'threat detected\n\nmalicious {}\nsuspicious {}\nharmless {}\nundetected {}'.format(
+                        bad,
+                        sus,
+                        safe,
+                        unknown
+                    )
+                )
+
+            elif sus > 0:
+                msg(
+                    output,
+                    'suspicious file\n\nmalicious {}\nsuspicious {}\nharmless {}\nundetected {}'.format(
+                        bad,
+                        sus,
+                        safe,
+                        unknown
+                    )
+                )
+
+            else:
+                msg(
+                    output,
+                    'no threats detected\n\nmalicious {}\nsuspicious {}\nharmless {}\nundetected {}'.format(
+                        bad,
+                        sus,
+                        safe,
+                        unknown
+                    )
+                )
+
+        elif res.status_code == 404:
+            output.config(text='')
+            msg(
+                output,
+                'file not found in virustotal\n\nsha256\n{}'.format(filehash)
+            )
+
+        elif res.status_code == 401:
+            output.config(text='')
+            msg(output, 'invalid virustotal api key')
+
+        elif res.status_code == 429:
+            output.config(text='')
+            msg(output, 'virustotal api limit reached')
+
+        else:
+            output.config(text='')
+            msg(output, 'virustotal error {}'.format(res.status_code))
+
+    except Exception as e:
+        output.config(text='')
+        msg(output, 'error\n{}'.format(e))
+
+
+def home():
+    output.config(text='')
+    msg(output, 'proceeding')
+
     name = simpledialog.askstring('Name', 'What is your name?')
-    output_label.config(text='')
-    option_label.config(text='')
-    home_button.pack_forget()
-    pro_button.pack_forget()
-    show_message(output_label, 'Tron Antivirus')
-    show_message(output_label, 'Greetings {}!'.format(name))
-    show_options()
 
-def pro_install():
-    output_label.config(text='')
-    show_message(output_label, 'Charge = ₹2500/year')
+    output.config(text='')
+    options.config(text='')
+
+    homebtn.pack_forget()
+    probtn.pack_forget()
+
+    msg(output, 'Verify AV')
+    msg(output, 'Greetings {}!'.format(name))
+
+    showoptions()
+
+
+def pro():
+    output.config(text='')
+    msg(output, 'Charge = ₹2500/year')
+
     name = simpledialog.askstring('Name', 'What is your name?')
-    output_label.config(text='')
-    option_label.config(text='')
-    home_button.pack_forget()
-    pro_button.pack_forget()
-    show_message(output_label, 'Tron Antivirus')
-    show_message(output_label, 'Greetings {}!'.format(name))
-    show_options()
 
-def show_options():
-    option_label.config(text='What may I do for you?')
-    virus_scan_button.pack()
-    account_protection_button.pack()
-    firewall_button.pack()
-    device_security_button.pack()
+    output.config(text='')
+    options.config(text='')
+
+    homebtn.pack_forget()
+    probtn.pack_forget()
+
+    msg(output, 'Verify AV')
+    msg(output, 'Greetings {}!'.format(name))
+
+    showoptions()
+
+
+def showoptions():
+    options.config(text='What may I do for you?')
+
+    scanbtn.pack()
+    accountbtn.pack()
+    firewallbtn.pack()
+    devicebtn.pack()
+
 
 root = tk.Tk()
-root.title('Tron Antivirus')
+root.title('Verify AV')
 root.configure(bg='dark slate gray')
 
-window_width = 400
-window_height = 300
-screen_width = root.winfo_screenwidth()
-screen_height = root.winfo_screenheight()
+width = 400
+height = 300
 
-x = (screen_width // 2) - (window_width // 2)
-y = (screen_height // 2) - (window_height // 2)
+screenw = root.winfo_screenwidth()
+screenh = root.winfo_screenheight()
 
-root.geometry(f'{window_width}x{window_height}+{x}+{y}')
+x = (screenw // 2) - (width // 2)
+y = (screenh // 2) - (height // 2)
+
+root.geometry(f'{width}x{height}+{x}+{y}')
 root.resizable(False, False)
-root.attributes('-alpha', 0.95)  # Set window opacity
+root.attributes('-alpha', 0.95)
 
-frame = tk.Frame(root, bg='dark slate gray', padx=20, pady=20, relief=tk.RIDGE, bd=5)
+frame = tk.Frame(
+    root,
+    bg='dark slate gray',
+    padx=20,
+    pady=20,
+    relief=tk.RIDGE,
+    bd=5
+)
+
 frame.place(relx=0.5, rely=0.5, anchor=tk.CENTER)
 
-output_label = tk.Label(frame, font=('Helvetica', 14), justify='center', bg='dark slate gray', fg='white')
-output_label.pack(pady=10)
+output = tk.Label(
+    frame,
+    font=('Helvetica', 14),
+    justify='center',
+    bg='dark slate gray',
+    fg='white'
+)
 
-title_label = tk.Label(frame, text='Tron Antivirus', font=('Helvetica', 20), justify='center', bg='dark slate gray', fg='white')
-title_label.pack()
+output.pack(pady=10)
 
-button_frame = tk.Frame(frame, bg='dark slate gray')
-button_frame.pack(pady=10)
+title = tk.Label(
+    frame,
+    text='Verify AV',
+    font=('Helvetica', 20),
+    justify='center',
+    bg='dark slate gray',
+    fg='white'
+)
 
-home_button = tk.Button(button_frame, text='Home', width=10, height=2, command=home_install, relief=tk.GROOVE, bd=2, bg='dark gray', fg='white')
-home_button.pack(side=tk.LEFT, padx=5)
+title.pack()
 
-pro_button = tk.Button(button_frame, text='Pro', width=10, height=2, command=pro_install, relief=tk.GROOVE, bd=2, bg='dark gray', fg='white')
-pro_button.pack(side=tk.LEFT, padx=5)
+buttons = tk.Frame(frame, bg='dark slate gray')
+buttons.pack(pady=10)
 
-option_label = tk.Label(frame, text='', font=('Helvetica', 14), justify='center', bg='dark slate gray', fg='white')
+homebtn = tk.Button(
+    buttons,
+    text='Home',
+    width=10,
+    height=2,
+    command=home,
+    relief=tk.GROOVE,
+    bd=2,
+    bg='dark gray',
+    fg='white'
+)
 
-virus_scan_button = tk.Button(frame, text='Virus Scan', width=15, height=2, relief=tk.GROOVE, bd=2, bg='dark gray', fg='white')
-account_protection_button = tk.Button(frame, text='Account Protection', width=15, height=2, relief=tk.GROOVE, bd=2, bg='dark gray', fg='white')
-firewall_button = tk.Button(frame, text='Firewall', width=15, height=2, relief=tk.GROOVE, bd=2, bg='dark gray', fg='white')
-device_security_button = tk.Button(frame, text='Device Security', width=15, height=2, relief=tk.GROOVE, bd=2, bg='dark gray', fg='white')
+homebtn.pack(side=tk.LEFT, padx=5)
+
+probtn = tk.Button(
+    buttons,
+    text='Pro',
+    width=10,
+    height=2,
+    command=pro,
+    relief=tk.GROOVE,
+    bd=2,
+    bg='dark gray',
+    fg='white'
+)
+
+probtn.pack(side=tk.LEFT, padx=5)
+
+options = tk.Label(
+    frame,
+    text='',
+    font=('Helvetica', 14),
+    justify='center',
+    bg='dark slate gray',
+    fg='white'
+)
+
+scanbtn = tk.Button(
+    frame,
+    text='Virus Scan',
+    width=15,
+    height=2,
+    command=scan,
+    relief=tk.GROOVE,
+    bd=2,
+    bg='dark gray',
+    fg='white'
+)
+
+accountbtn = tk.Button(
+    frame,
+    text='Account Protection',
+    width=15,
+    height=2,
+    relief=tk.GROOVE,
+    bd=2,
+    bg='dark gray',
+    fg='white'
+)
+
+firewallbtn = tk.Button(
+    frame,
+    text='Firewall',
+    width=15,
+    height=2,
+    relief=tk.GROOVE,
+    bd=2,
+    bg='dark gray',
+    fg='white'
+)
+
+devicebtn = tk.Button(
+    frame,
+    text='Device Security',
+    width=15,
+    height=2,
+    relief=tk.GROOVE,
+    bd=2,
+    bg='dark gray',
+    fg='white'
+)
 
 root.mainloop()
